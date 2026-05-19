@@ -27,17 +27,8 @@
                 <h1 class="text-3xl font-bold text-gray-900 mb-2">Willkommen bei deinem persönlichen Studienmanager!</h1>
                 <p class="text-gray-600 text-lg">Verwalte und analysiere dein Studium direkt, sicher und ohne Server über GitHub Pages.</p>
                 <hr class="my-6 border-gray-200">
-                
                 <h3 class="text-xl font-semibold mb-3 text-gray-800">Was kann diese Website?</h3>
-                <p class="text-gray-600 mb-6">Mit dieser Web-App kannst du dein offizielles Notenblatt analysieren lassen und visuelle Einblicke in deinen Studienfortschritt gewinnen. Es rechnet dir automatisch deine gewichtete Gesamtnote (NC) sowie deine ECTS-Fortschritte aus.</p>
-                
-                <div class="bg-amber-50 border border-amber-200 p-4 rounded-xl flex items-start gap-3">
-                    <span class="text-xl">🛡️</span>
-                    <div>
-                        <h4 class="font-semibold text-amber-900">Datenschutz-Garantie</h4>
-                        <p class="text-amber-800 text-sm">Da diese App komplett mit lokalem JavaScript in deinem Browser läuft, werden deine Noten und Dokumente <strong>niemals auf einen fremden Server hochgeladen</strong>. Alles bleibt absolut privat.</p>
-                    </div>
-                </div>
+                <p class="text-gray-600 mb-6">Mit dieser Web-App kannst du dein offizielles Notenblatt analysieren lassen. Es rechnet dir automatisch deine gewichtete Gesamtnote (NC) sowie deine ECTS-Fortschritte aus.</p>
             </div>
         </section>
 
@@ -49,10 +40,9 @@
                 <label class="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl p-6 bg-gray-50 hover:bg-gray-100 cursor-pointer transition">
                     <span class="text-4xl mb-2">📄</span>
                     <span class="font-medium text-indigo-600">PDF-Notenblatt hochladen</span>
-                    <span class="text-xs text-gray-400 mt-1">Unterstützt offizielle Leistungsnachweise</span>
                     <input type="file" id="pdf-input" accept="application/pdf" class="hidden" onchange="processPDF(this)">
                 </label>
-                <div id="loading" class="hidden text-indigo-600 font-medium mt-4 animate-pulse">Analysiere PDF-Struktur...</div>
+                <div id="loading" class="hidden text-indigo-600 font-medium mt-4 animate-pulse">Analysiere Tabellenstruktur wie Python...</div>
             </div>
 
             <div id="results" class="hidden space-y-8">
@@ -81,7 +71,7 @@
                         <div class="h-64"><canvas id="chart-ects"></canvas></div>
                     </div>
                     <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                        <h4 class="font-bold text-gray-700 mb-4">Notenverteilung (Anzahl)</h4>
+                        <h4 class="font-bold text-gray-700 mb-4">Notenverteilung</h4>
                         <div class="h-64"><canvas id="chart-hist"></canvas></div>
                     </div>
                     <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center justify-center">
@@ -92,20 +82,19 @@
 
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                     <div class="p-6 border-b border-gray-100">
-                        <h4 class="font-bold text-gray-700">Extrahierte Moduldaten</h4>
+                        <h4 class="font-bold text-gray-700">Gelesene Moduldaten (Bitte prüfen)</h4>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="w-full text-left border-collapse">
                             <thead>
                                 <tr class="bg-gray-50 border-b border-gray-100 text-gray-400 text-xs font-semibold uppercase tracking-wider">
-                                    <th class="p-4">Semester</th>
-                                    <th class="p-4">Modulname / Code</th>
-                                    <th class="p-4 text-center">Note</th>
+                                    <th class="p-4">Sem.</th>
+                                    <th class="p-4">Modulname</th>
+                                    <th class="p-4 text-center">Endnote</th>
                                     <th class="p-4 text-center">ECTS</th>
                                 </tr>
                             </thead>
-                            <tbody id="table-body" class="divide-y divide-gray-100 text-sm text-gray-600">
-                                </tbody>
+                            <tbody id="table-body" class="divide-y divide-gray-100 text-sm text-gray-600"></tbody>
                         </table>
                     </div>
                 </div>
@@ -114,48 +103,31 @@
     </main>
 
     <script>
-        // PDF.js Worker setzen
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-
         let charts = {};
 
-        // Einfacher Tab-Wechsler (Unterseiten-Simulation)
         function switchTab(tab) {
-            const homePage = document.getElementById('page-home');
-            const dashPage = document.getElementById('page-dash');
-            const homeBtn = document.getElementById('tab-home-btn');
-            const dashBtn = document.getElementById('tab-dash-btn');
-
-            if (tab === 'home') {
-                homePage.classList.remove('hidden');
-                dashPage.classList.add('hidden');
-                homeBtn.className = "text-indigo-600 border-b-2 border-indigo-600 h-full px-2 font-medium transition";
-                dashBtn.className = "text-gray-500 hover:text-indigo-600 h-full px-2 font-medium transition";
-            } else {
-                dashPage.classList.remove('hidden');
-                homePage.classList.add('hidden');
-                dashBtn.className = "text-indigo-600 border-b-2 border-indigo-600 h-full px-2 font-medium transition";
-                homeBtn.className = "text-gray-500 hover:text-indigo-600 h-full px-2 font-medium transition";
-            }
+            document.getElementById('page-home').classList.toggle('hidden', tab !== 'home');
+            document.getElementById('page-dash').classList.toggle('hidden', tab !== 'dash');
         }
 
-        // Hilfsfunktionen zur Notenbereinigung (Äquivalent zu parse_note in Python)
-        function parseNote(val) {
-            if (!val) return 0;
-            let clean = val.trim().replace(',', '.').replace(/[^0-9.-]/g, '');
+        // Exaktes Äquivalent zu parse_note aus deiner data_catcher.py
+        function parseNote(x) {
+            if (!x) return 0.0;
+            let clean = String(x).trim().replace(',', '.');
+            clean = clean.replace(/[^0-9.\-]/g, '');
             let num = parseFloat(clean);
-            return isNaN(num) ? 0 : num;
+            return isNaN(num) ? 0.0 : num;
         }
 
-        // Sortier-Logik für Semester (Äquivalent zu sort_key in Python)
-        function getSemesterSortValue(semStr) {
-            let yearMatch = semStr.match(/\d{4}/);
-            let year = yearMatch ? parseInt(yearMatch[0]) : 0;
-            let bonus = semStr.includes("WiSe") ? 0.0 : 0.5; // Wie in deiner Python-Logik
-            return year + bonus;
+        // Exaktes Äquivalent zu sort_key aus deiner data_catcher.py
+        function sortKey(semString) {
+            let jahre = semString.match(/\d{4}/);
+            let jahr = jahre ? parseInt(jahre[0]) : 0;
+            let prio = semString.includes("WiSe") ? 0.0 : 0.5;
+            return jahr + prio;
         }
 
-        // PDF einlesen und parsen
         async function processPDF(input) {
             const file = input.files[0];
             if (!file) return;
@@ -167,82 +139,89 @@
                 const arrayBuffer = await file.arrayBuffer();
                 const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
                 
-                let allRows = [];
-                
-                // Alle Seiten durchgehen und Rohtext zeilenweise abgreifen
+                let words = [];
+
+                // Extrahiere alle Textelemente inklusive ihrer exakten XY-Koordinaten auf der Seite
                 for (let i = 1; i <= pdf.numPages; i++) {
                     const page = await pdf.getPage(i);
                     const textContent = await page.getTextContent();
-                    
-                    // Strukturieren der Text-Fragmente in Zeilen basierend auf Y-Koordinate
-                    let items = textContent.items;
-                    let lines = {};
-                    items.forEach(item => {
-                        let y = Math.round(item.transform[5]);
-                        if (!lines[y]) lines[y] = [];
-                        lines[y].push(item);
-                    });
-                    
-                    // Zeilen von oben nach unten sortieren
-                    let sortedY = Object.keys(lines).sort((a, b) => b - a);
-                    sortedY.forEach(y => {
-                        // Fragmente innerhalb einer Zeile von links nach rechts sortieren
-                        let lineItems = lines[y].sort((a, b) => a.transform[4] - b.transform[4]);
-                        let textLine = lineItems.map(item => item.str).join("  ").trim();
-                        if (textLine.length > 5) allRows.push(textLine);
+                    textContent.items.forEach(item => {
+                        words.push({
+                            text: item.str.trim(),
+                            x: item.transform[4],
+                            y: item.transform[5],
+                            page: i
+                        });
                     });
                 }
 
-                // Datenstrukturen aufbauen
+                // Gruppiere die Fragmente präzise nach Zeilen (Y-Koordinate mit Toleranz von 4 Pixeln)
+                let linesMap = {};
+                words.forEach(w => {
+                    if(w.text === "") return;
+                    let key = `${w.page}_${Math.round(w.y / 4) * 4}`;
+                    if (!linesMap[key]) linesMap[key] = [];
+                    linesMap[key].push(w);
+                });
+
                 let modules = [];
-                
-                // Regex-Muster passend zu typischen Notenblatt-Zeilenstrukturen
-                // Sucht nach Mustern wie: "WiSe 23/24" oder "SoSe 24" gefolgt von Text, ECTS und Note
-                allRows.forEach(row => {
-                    let semMatch = row.match(/(WiSe\s*\d{2,4}\/?\d{0,2}|SoSe\s*\d{2,4})/i);
+
+                // Sortiere Zeilen von oben nach unten
+                let sortedKeys = Object.keys(linesMap).sort((a,b) => {
+                    let [pA, yA] = a.split('_').map(Number);
+                    let [pB, yB] = b.split('_').map(Number);
+                    return pA !== pB ? pA - pB : yB - yA;
+                });
+
+                sortedKeys.forEach(key => {
+                    let lineWords = linesMap[key].sort((a, b) => a.x - b.x);
+                    
+                    // Suche nach Semester-Spalteneintrag (z.B. WiSe 23/24 oder SoSe 24)
+                    let fullLineText = lineWords.map(w => w.text).join(" ");
+                    let semMatch = fullLineText.match(/(WiSe\s*\d{2,4}\/?\d{0,4}|SoSe\s*\d{2,4})/i);
+                    
                     if (semMatch) {
-                        // Versuch, Zahlenwerte für ECTS und Note aus dem hinteren Zeilenbereich zu isolieren
-                        let parts = row.split(/\s{2,}/);
-                        if (parts.length >= 3) {
-                            let sem = semMatch[0].replace('\n', ' ');
-                            let name = parts.slice(1, parts.length - 2).join(" ") || "Unbekanntes Modul";
-                            let ects = parseNote(parts[parts.length - 1]);
-                            let note = parseNote(parts[parts.length - 2]);
+                        // Da wir die exakte X-Reihenfolge haben, trennen wir Modultext, Note und ECTS
+                        let sem = semMatch[0];
+                        
+                        // Wir filtern numerische Werte am Ende der Zeile für Note und ECTS
+                        let numbersInLine = lineWords.filter(w => /^[0-9.,-]+$/.test(w.text));
+                        
+                        if (numbersInLine.length >= 2) {
+                            let ectsRaw = numbersInLine[numbersInLine.length - 1].text;
+                            let noteRaw = numbersInLine[numbersInLine.length - 2].text;
                             
-                            // Plausibilitätscheck (Wie in deiner data_catcher-Logik)
+                            let ects = parseNote(ectsRaw);
+                            let note = parseNote(noteRaw);
+
+                            // Modulname ist alles zwischen Semester-Identifier und den Zahlenwerten
+                            let name = fullLineText.replace(sem, "").replace(noteRaw, "").replace(ectsRaw, "").trim();
+                            name = name.replace(/\s+/g, " "); // Doppelräume säubern
+
                             if (ects > 0 || note > 0) {
-                                modules.push({ semester: sem, name: name, note: note, ects: ects });
+                                modules.push({ semester: sem, name: name || "Modul", note: note, ects: ects });
                             }
                         }
                     }
                 });
 
-                // Falls der rudimentäre koordinatenbasierte Parser fehlschlägt, Demodaten zur Strukturierung anbieten
                 if (modules.length === 0) {
-                    alert("Hinweis: Tabellenstruktur der PDF konnte nicht vollautomatisch extrahiert werden. Es werden Beispielwerte generiert, um das Layout zu zeigen.");
-                    modules = [
-                        { semester: "WiSe 2023/24", name: "Mathematik 1", note: 2.3, ects: 7 },
-                        { semester: "WiSe 2023/24", name: "Programmieren 1", note: 1.7, ects: 5 },
-                        { semester: "SoSe 2024", name: "Algorithmen", note: 3.0, ects: 6 },
-                        { semester: "SoSe 2024", name: "Datenbanken", note: 1.3, ects: 5 },
-                        { semester: "WiSe 2024/25", name: "Software Engineering", note: 2.0, ects: 5 }
-                    ];
+                    alert("Es wurden keine gültigen Tabellenzeilen gefunden. Bitte prüfe, ob es sich um ein valides Notenblatt handelt.");
+                    return;
                 }
 
                 buildDashboard(modules);
 
             } catch (err) {
-                alert("Fehler beim Verarbeiten der PDF: " + err.message);
-            } finally {
+                alert("Fehler beim Analysieren des Dokumentes: " + err.message);
+            } {
                 document.getElementById('loading').classList.add('hidden');
             }
         }
 
-        // Dashboard berechnen & rendern (Äquivalent zu visualizer + main)
         function buildDashboard(modules) {
             document.getElementById('results').classList.remove('hidden');
 
-            // 1. Berechnungen
             let totalEcts = 0;
             let weightedNotesSum = 0;
             let notesCount = {};
@@ -252,15 +231,10 @@
                 totalEcts += m.ects;
                 if (m.note > 0) {
                     weightedNotesSum += (m.note * m.ects);
-                }
-                
-                // Notenverteilung zählen (auf Zehntel runden für Histogramm)
-                let roundedNote = m.note.toFixed(1);
-                if (m.note > 0) {
+                    let roundedNote = m.note.toFixed(1);
                     notesCount[roundedNote] = (notesCount[roundedNote] || 0) + 1;
                 }
 
-                // Semesterweise Gruppierung
                 if (!semData[m.semester]) {
                     semData[m.semester] = { weightedSum: 0, ectsSum: 0 };
                 }
@@ -272,88 +246,70 @@
 
             let totalNc = totalEcts > 0 ? (weightedNotesSum / totalEcts) : 0.0;
 
-            // Metriken setzen
             document.getElementById('metric-nc').innerText = totalNc.toFixed(2);
             document.getElementById('metric-ects').innerText = `${totalEcts.toFixed(0)} / 210`;
             document.getElementById('metric-modules').innerText = modules.length;
 
-            // Semester sortieren nach deiner Python-Logik
-            let sortedSemesters = Object.keys(semData).sort((a, b) => getSemesterSortValue(a) - getSemesterSortValue(b));
+            // Sortierung exakt nach Python sort_key
+            let sortedSemesters = Object.keys(semData).sort((a, b) => sortKey(a) - sortKey(b));
             
-            let semNcLabels = [];
+            let semLabels = [];
             let semNcValues = [];
             let semEctsValues = [];
 
             sortedSemesters.forEach(sem => {
-                semNcLabels.push(sem);
+                semLabels.push(sem);
                 let sData = semData[sem];
                 let semNc = sData.ectsSum > 0 ? (sData.weightedSum / sData.ectsSum) : 0;
                 semNcValues.push(semNc.toFixed(2));
                 semEctsValues.push(sData.ectsSum);
             });
 
-            // Tabelle befüllen
+            // Tabelle neu zeichnen
             const tbody = document.getElementById('table-body');
             tbody.innerHTML = "";
             modules.forEach(m => {
-                let row = `
+                tbody.innerHTML += `
                     <tr class="hover:bg-gray-50 transition">
                         <td class="p-4 font-medium text-gray-900">${m.semester}</td>
                         <td class="p-4">${m.name}</td>
-                        <td class="p-4 text-center font-semibold text-indigo-600">${m.note > 0 ? m.note.toFixed(1) : 'pass.'}</td>
+                        <td class="p-4 text-center font-semibold text-indigo-600">${m.note > 0 ? m.note.toFixed(1) : 'passiert'}</td>
                         <td class="p-4 text-center">${m.ects}</td>
                     </tr>
                 `;
-                tbody.innerHTML += row;
             });
 
-            // --- CHARTJS IMPLEMENTIERUNG (Deine Matplotlib-Plots) ---
+            // --- RE-RENDER CHART.JS DIAGRAMME ---
             if (charts.nc) charts.nc.destroy();
             if (charts.ects) charts.ects.destroy();
             if (charts.hist) charts.hist.destroy();
             if (charts.progress) charts.progress.destroy();
 
-            // 1) NC Verlauf
             charts.nc = new Chart(document.getElementById('chart-nc'), {
                 type: 'line',
-                data: {
-                    labels: semNcLabels,
-                    datasets: [{ label: 'NC', data: semNcValues, borderColor: '#4f46e5', tension: 0.1, fill: false, borderWidth: 3 }]
-                },
+                data: { labels: semLabels, datasets: [{ label: 'Semester-NC', data: semNcValues, borderColor: '#4f46e5', tension: 0.1, borderWidth: 3 }] },
                 options: { responsive: true, maintainAspectRatio: false, scales: { y: { reverse: true, min: 1.0, max: 4.0 } } }
             });
 
-            // 2) ECTS pro Semester
             charts.ects = new Chart(document.getElementById('chart-ects'), {
                 type: 'bar',
-                data: {
-                    labels: semNcLabels,
-                    datasets: [{ label: 'ECTS', data: semEctsValues, backgroundColor: '#3b82f6' }]
-                },
+                data: { labels: semLabels, datasets: [{ label: 'ECTS', data: semEctsValues, backgroundColor: '#3b82f6' }] },
                 options: { responsive: true, maintainAspectRatio: false }
             });
 
-            // 3) Notenverteilung
             let histLabels = Object.keys(notesCount).sort();
             let histValues = histLabels.map(l => notesCount[l]);
             charts.hist = new Chart(document.getElementById('chart-hist'), {
                 type: 'bar',
-                data: {
-                    labels: histLabels,
-                    datasets: [{ label: 'Anzahl', data: histValues, backgroundColor: '#10b981' }]
-                },
+                data: { labels: histLabels, datasets: [{ label: 'Anzahl', data: histValues, backgroundColor: '#10b981' }] },
                 options: { responsive: true, maintainAspectRatio: false }
             });
 
-            // 4) Fortschritt Donut
             let remainingEcts = Math.max(210 - totalEcts, 0);
             charts.progress = new Chart(document.getElementById('chart-progress'), {
                 type: 'doughnut',
-                data: {
-                    labels: ['Geschafft', 'Offen'],
-                    datasets: [{ data: [totalEcts, remainingEcts], backgroundColor: ['#6366f1', '#e2e8f0'] }]
-                },
-                options: { responsive: true, maintainAspectRatio: false, cutout: '70%' }
+                data: { labels: ['Erreicht', 'Offen'], datasets: [{ data: [totalEcts, remainingEcts], backgroundColor: ['#6366f1', '#e2e8f0'] }] },
+                options: { responsive: true, maintainAspectRatio: false, cutout: '75%' }
             });
         }
     </script>
