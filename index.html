@@ -1,23 +1,200 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="utf-8">
-  <title>SAYTlabs</title>
-  <style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAYTlabs - Schematic Dashboard</title>
+    <style>
+        /* --- 1. SCHALTPLAN DETEILS & HINTERGRUND --- */
         body {
-            background-color: #000000;
-            color: #ffffff;
+            background-color: #060403; /* Tiefschwarz mit braunem Unterton */
+            /* Technisches Millimeterpapier/Raster-Muster */
+            background-image:
+                linear-gradient(rgba(255, 102, 0, 0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 102, 0, 0.02) 1px, transparent 1px);
+            background-size: 20px 20px;
+            color: #d4a373;
+            margin: 0;
+            padding: 40px;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            flex-direction: column;
+            gap: 40px;
+            align-items: center;
+        }
+
+        /* --- 2. NIXIE LOGO-RÖHREN (WIE GEHABT) --- */
+        .nixie-enclosure {
+            background: linear-gradient(to bottom, #120c08, #070403);
+            border: 2px solid #3a2212;
+            border-radius: 12px;
+            padding: 20px 30px;
+            display: flex;
+            gap: 15px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.9);
+            position: relative;
+        }
+        /* Technische Beschriftung am Röhrengehäuse */
+        .nixie-enclosure::after {
+            content: "SAYT-LOGIC-MODULE // REF. 2026";
+            position: absolute;
+            bottom: -22px;
+            right: 10px;
+            font-size: 0.75rem;
+            color: rgba(255, 102, 0, 0.4);
+        }
+        .tube {
+            position: relative;
+            width: 65px;
+            height: 120px;
+            background: linear-gradient(to right, rgba(35,20,10,0.6), rgba(15,8,3,0.3) 30%, rgba(35,20,10,0.1) 70%, rgba(10,4,1,0.7));
+            border-radius: 30px 30px 6px 6px;
+            border: 1px solid rgba(255, 102, 0, 0.15);
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.9), inset 0 4px 8px rgba(255,255,255,0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+        .bg-filaments {
+            position: absolute;
+            font-size: 4rem;
+            font-weight: bold;
+            color: rgba(65, 45, 35, 0.7);
+            transform: translate(2px, -1px) scale(0.95);
+            z-index: 1;
+        }
+        .filament {
+            font-size: 3.8rem;
+            font-weight: bold;
+            color: #ffd699;
+            z-index: 2;
+            text-shadow: 0 0 3px #ff5500, 0 0 12px #ff3300, 0 0 25px rgba(255, 51, 0, 0.5);
+        }
+
+        /* --- 3. KACHELN ALS SCHALTPLAN-BAUTEILE (GRID) --- */
+        .schematic-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            width: 100%;
+            max-width: 1000px;
+        }
+
+        /* Eine einzelne Schaltplan-Kachel */
+        .component-card {
+            background: rgba(15, 10, 8, 0.8);
+            border: 1px dashed rgba(255, 102, 0, 0.25); /* Gestrichelte Linie wie im Schaltplan */
+            padding: 20px;
+            position: relative;
+            text-decoration: none; /* Macht den Link clean */
+            color: inherit;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        /* Technische Verbindungs-Ecken (Pins) */
+        .component-card::before {
+            content: "[IN]";
+            position: absolute;
+            top: -10px;
+            left: 15px;
+            font-size: 0.7rem;
+            background: #060403;
+            padding: 0 5px;
+            color: rgba(255, 102, 0, 0.5);
+        }
+
+        /* Zusätzlicher Tech-Stempel unten rechts */
+        .component-card .component-id {
+            position: absolute;
+            bottom: 8px;
+            right: 12px;
+            font-size: 0.65rem;
+            color: rgba(255, 102, 0, 0.3);
+        }
+
+        .component-card h3 {
+            margin: 0 0 10px 0;
+            font-size: 1.2rem;
+            color: #ffaa44;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Pfeil-Symbol im ASCII Stil */
+        .component-card h3::before {
+            content: "➔";
+            color: rgba(255, 102, 0, 0.4);
+        }
+
+        .component-card p {
+            margin: 0;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            color: #a68565;
+        }
+
+        /* --- 4. INTERAKTIVER GLOW BEIM HOVERN (STROM FLIESST) --- */
+        .component-card:hover {
+            border: 1px solid #ff5500;
+            background: rgba(30, 15, 8, 0.9);
+            box-shadow: 0 0 15px rgba(255, 85, 0, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .component-card:hover h3 {
+            color: #ffd699;
+            text-shadow: 0 0 8px #ff5500;
+        }
+
+        .component-card:hover::before {
+            color: #ff5500;
+            content: "[ACTIVE]";
         }
     </style>
 </head>
 <body>
-  <h1>SAYTlabs</h1>
-  <p>Overview</p>
-  <h2>Headline2</h2>
-  <ul>
-    <li>A</li>
-    <li>B</li>
-    <li>B</li>
-  </ul>
-  <p>LINK</p>
+
+    <div class="nixie-enclosure">
+        <div class="tube"><span class="filament">S</span></div>
+        <div class="tube"><span class="filament">A</span></div>
+        <div class="tube"><span class="filament">Y</span></div>
+        <div class="tube"><span class="filament">T</span></div>
+        <div class="tube"><span class="filament">l</span></div>
+        <div class="tube"><span class="filament">a</span></div>
+        <div class="tube"><span class="filament">b</span></div>
+        <div class="tube"><span class="filament">s</span></div>
+    </div>
+
+    <div class="schematic-grid">
+
+        <a href="#projekte" class="component-card">
+            <h3>PROJECTS_</h3>
+            <p>Übersicht aller Projekte</p>
+            <span class="component-id">MOD_01 // RES: 4.7k</span>
+        </a>
+
+        <a href="tools" class="component-card">
+            <h3>TOOLS_</h3>
+            <p>tbd</p>
+            <span class="component-id">MOD_02 // CAP: 100uF</span>
+        </a>
+
+        <a href="#status" class="component-card">
+            <h3>SYS_STATUS_</h3>
+            <p>tbd</p>
+            <span class="component-id">MOD_03 // FREQ: 16MHz</span>
+        </a>
+
+        <a href="#terminal" class="component-card">
+            <h3>TERMINAL_</h3>
+            <p>Animiertes Terminal</p>
+            <span class="component-id">MOD_04 // PORT: 8080</span>
+        </a>
+
+    </div>
+
 </body>
+</html>
